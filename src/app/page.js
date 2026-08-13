@@ -1,219 +1,248 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Search, ArrowRight, Zap, CheckCircle, Star, TrendingUp, Rocket, FileText, BarChart2, Newspaper, ChevronRight, Shield, Clock, Target } from 'lucide-react'
-import { useAuth } from '@/lib/auth'
-import LiveActivity from '@/components/LiveActivity'
-import LogoStrip from '@/components/LogoStrip'
-import ComparisonTable from '@/components/ComparisonTable'
-import SkillsQuiz from '@/components/SkillsQuiz'
-import BeforeAfter from '@/components/BeforeAfter'
-import SalaryBenchmark from '@/components/SalaryBenchmark'
+import { useState, useEffect } from 'react'
+import { Newspaper, TrendingUp, Clock, RefreshCw, Building2, DollarSign, AlertCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
+import Disclaimer from '@/components/Disclaimer'
 
-function Counter({ target, suffix = '', duration = 1800 }) {
-  const [count, setCount] = useState(0)
-  const [started, setStarted] = useState(false)
-  const ref = useRef()
-  useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStarted(true) }, { threshold: 0.5 })
-    if (ref.current) obs.observe(ref.current)
-    return () => obs.disconnect()
-  }, [])
-  useEffect(() => {
-    if (!started) return
-    const num = parseInt(target.replace(/\D/g, ''))
-    let start = 0; const step = num / (duration / 16)
-    const t = setInterval(() => { start += step; if (start >= num) { setCount(num); clearInterval(t) } else setCount(Math.floor(start)) }, 16)
-    return () => clearInterval(t)
-  }, [started, target, duration])
-  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+const CACHE_KEY = 'jobready_news_cache'
+const CACHE_DURATION = 6 * 60 * 60 * 1000
+
+function getCachedNews() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const { data, timestamp } = JSON.parse(raw)
+    if (Date.now() - timestamp > CACHE_DURATION) return null
+    return data
+  } catch { return null }
 }
 
-const features = [
-  { icon: Rocket, label: 'Startup Tracker', href: '/startup-tracker', tag: 'Live', title: 'Track funded startups', description: 'See funded Indian startups hiring freshers with founder profiles, salary ranges, and open roles.' },
-  { icon: Search, label: 'AI Job Finder', href: '/job-finder', tag: 'AI', title: 'Jobs matched to your resume', description: 'Upload your resume and let AI search for matching jobs across the web with skill-match scoring.' },
-  { icon: FileText, label: 'Resume Tailor', href: '/resume-tailor', tag: 'AI', title: 'Tailor resume for any job', description: 'Paste a job description and your resume — get an ATS-optimized version made for that exact role.' },
-  { icon: BarChart2, label: 'ATS Score', href: '/ats-score', tag: 'Instant', title: 'Check your ATS score', description: 'Score out of 100 with section-wise feedback and the exact fixes to make first.' },
-  { icon: Newspaper, label: 'AI News', href: '/news', tag: 'Daily', title: 'See who is hiring now', description: 'Top hiring companies, trending skills, and salary data updated for the Indian fresher market.' },
-]
+function setCachedNews(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }))
+  } catch {}
+}
 
-export default function HomePage() {
-  const [liveJobs, setLiveJobs] = useState(2847)
-  const { user } = useAuth()
-  const router = useRouter()
+export default function NewsPage() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState('headlines')
+  const [refreshing, setRefreshing] = useState(false)
+  const [cacheAge, setCacheAge] = useState(null)
 
-  useEffect(() => {
-    const interval = setInterval(() => setLiveJobs(prev => prev + Math.floor(Math.random() * 3)), 3000)
-    return () => clearInterval(interval)
-  }, [])
+  async function fetchNews(forceRefresh = false) {
+    if (!forceRefresh) {
+      const cached = getCachedNews()
+      if (cached) {
+        setData(cached)
+        setLoading(false)
+        try {
+          const raw = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}')
+          if (raw.timestamp) {
+            const mins = Math.floor((Date.now() - raw.timestamp) / 60000)
+            setCacheAge(mins < 60 ? (mins + 'm ago') : (Math.floor(mins / 60) + 'h ago'))
+          }
+        } catch {}
+        return
+      }
+    }
+    if (forceRefresh) setRefreshing(true)
+    else setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/ai-news')
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to fetch news')
+      setData(json)
+      setCachedNews(json)
+      setCacheAge('just now')
+      if (forceRefresh) toast.success('News refreshed!')
+    } catch (err) {
+      setError(err.message)
+      toast.error('Failed to load news')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
 
-  function handleStartFree() { router.push(user ? '/job-finder' : '/signup') }
+  useEffect(() => { fetchNews() }, [])
+
+  const tabs = [
+    { id: 'headlines', label: 'Headlines', icon: Newspaper },
+    { id: 'companies', label: 'Top Hiring', icon: Building2 },
+    { id: 'skills', label: 'Skills', icon: TrendingUp },
+    { id: 'salary', label: 'Salaries', icon: DollarSign },
+    { id: 'trends', label: 'Trends', icon: TrendingUp },
+  ]
 
   return (
-    <div className="page-enter">
-      {/* ── HERO ── */}
-      <section className="relative bg-dotgrid" style={{ borderBottom: '1px solid var(--border)' }}>
-        <div className="max-w-5xl mx-auto px-6 pt-20 pb-24 text-center">
-
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ border: '1px solid var(--border)' }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--green)' }} />
-            <span style={{ color: 'var(--ink)', fontWeight: 700 }}>{liveJobs.toLocaleString()}</span>
-            <span style={{ color: 'var(--ink-soft)' }}>fresher jobs live right now</span>
-          </div>
-
-          <h1 className="display text-5xl sm:text-6xl md:text-7xl font-bold mb-6 leading-[1.05]" style={{ color: 'var(--ink)' }}>
-            Land your first job<br /><span style={{ color: 'var(--blue)' }}>without the guesswork</span>
+    <div className="page-enter max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
+        <div>
+          <p className="eyebrow mb-3">Live AI Feed</p>
+          <h1 className="display text-4xl sm:text-5xl font-bold mb-2" style={{ color: 'var(--ink)' }}>
+            AI Hiring News
           </h1>
-
-          <p className="text-lg max-w-2xl mx-auto mb-10 leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
-            JobReady reads your resume, finds the jobs that fit, tailors your application, and checks your ATS score — all in one place, free.
+          <p style={{ color: 'var(--ink-soft)' }}>
+            Hiring trends, in-demand skills, salary data and market insights
           </p>
+          {data && data.lastUpdated && (
+            <p className="text-xs mt-2" style={{ color: 'var(--ink-faint)' }}>
+              Updated: {data.lastUpdated}
+              {cacheAge && (
+                <span className="pill pill-green" style={{ fontSize: 10, marginLeft: 8 }}>
+                  Cached {cacheAge}
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => fetchNews(true)}
+          disabled={loading || refreshing}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <RefreshCw size={14} />
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-14">
-            <button onClick={handleStartFree} className="btn-primary flex items-center justify-center gap-2" style={{ fontSize: '0.95rem', padding: '0.85rem 2rem' }}>
-              <Zap size={16} fill="white" /> {user ? 'Find My Jobs' : 'Start for Free'} <ArrowRight size={15} />
-            </button>
-            <Link href="/job-finder" className="btn-secondary flex items-center justify-center gap-2" style={{ textDecoration: 'none', fontSize: '0.95rem', padding: '0.85rem 2rem' }}>
-              <Search size={16} /> Find Jobs with AI
-            </Link>
+      <Disclaimer type="news" />
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '80px 0' }}>
+          <div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: 'var(--border)', borderTopColor: 'var(--blue)' }} />
+          <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>Loading fresh hiring news...</p>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div className="flex items-center gap-3 p-4 rounded-xl inline-flex"
+            style={{ background: '#FEF2F2' }}>
+            <AlertCircle size={18} style={{ color: 'var(--red)' }} />
+            <p style={{ color: 'var(--red)', fontSize: 14 }}>{error}</p>
           </div>
-
-          {/* Stats strip — campus ID style */}
-          <div className="id-card inline-flex flex-wrap justify-center divide-x" style={{ borderColor: 'var(--border)' }}>
-            {[
-              { target: '10000', suffix: '+', label: 'Freshers Helped' },
-              { target: '500', suffix: '+', label: 'Startups Tracked' },
-              { target: '95', suffix: '%', label: 'ATS Pass Rate' },
-              { target: '2', suffix: ' min', label: 'Avg Search Time' },
-            ].map(({ target, suffix, label }, i) => (
-              <div key={label} className="px-8 py-5 text-center" style={{ borderColor: 'var(--border)' }}>
-                <div className="display text-2xl font-bold" style={{ color: 'var(--ink)' }}><Counter target={target} suffix={suffix} /></div>
-                <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <LogoStrip />
-
-      {/* ── FEATURES — campus ID card grid ── */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center mb-14">
-          <p className="eyebrow mb-3">Everything you need</p>
-          <h2 className="display text-4xl font-bold" style={{ color: 'var(--ink)' }}>Five tools. One dashboard.</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map(({ icon: Icon, label, href, tag, title, description }) => (
-            <Link key={href} href={href} className="id-card card-hover p-6 block" style={{ textDecoration: 'none' }}>
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--blue-light)' }}>
-                  <Icon size={20} style={{ color: 'var(--blue)' }} />
-                </div>
-                <span className="pill pill-blue">{tag}</span>
-              </div>
-              <h3 className="font-bold text-base mb-2" style={{ color: 'var(--ink)' }}>{title}</h3>
-              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--ink-soft)' }}>{description}</p>
-              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--blue)' }}>
-                Open {label} <ChevronRight size={14} />
-              </div>
-            </Link>
-          ))}
-          <div className="rounded-2xl flex flex-col items-center justify-center text-center gap-2 p-6" style={{ border: '1.5px dashed var(--border-strong)' }}>
-            <Star size={18} style={{ color: 'var(--ink-faint)' }} />
-            <p className="text-sm font-medium" style={{ color: 'var(--ink-faint)' }}>More tools coming soon</p>
-          </div>
-        </div>
-      </section>
-
-      <ComparisonTable />
-      <SkillsQuiz />
-
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-24 px-6" style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="eyebrow mb-3">Simple process</p>
-            <h2 className="display text-4xl font-bold" style={{ color: 'var(--ink)' }}>From resume to offer in 3 steps</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { n: '01', title: 'Upload your resume', desc: 'PDF or paste text. AI reads your skills and experience in seconds.' },
-              { n: '02', title: 'AI finds your jobs', desc: 'Get matched jobs across the web with a clear % fit score for each.' },
-              { n: '03', title: 'Tailor & apply', desc: 'One-click tailor your resume for top matches, then apply directly.' },
-            ].map(({ n, title, desc }) => (
-              <div key={n} className="card p-6">
-                <span className="display text-3xl font-bold block mb-4" style={{ color: 'var(--blue)' }}>{n}</span>
-                <h3 className="font-bold text-base mb-2" style={{ color: 'var(--ink)' }}>{title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--ink-soft)' }}>{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <BeforeAfter />
-
-      {/* ── TESTIMONIALS ── */}
-      <section className="max-w-6xl mx-auto px-6 py-24">
-        <div className="text-center mb-14">
-          <p className="eyebrow mb-3">Success stories</p>
-          <h2 className="display text-4xl font-bold" style={{ color: 'var(--ink)' }}>Freshers who got hired</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[
-            { name: 'Priya Sharma', role: 'SDE at Zepto', text: 'JobReady found me 15 matching jobs in 2 minutes. The resume tailor boosted my ATS score from 42 to 87.' },
-            { name: 'Rahul Gupta', role: 'Data Analyst at Groww', text: 'Found Groww on the startup tracker, tailored my resume with AI, and got placed in 3 weeks.' },
-            { name: 'Ananya Singh', role: 'PM at Razorpay', text: 'As a non-CS fresher, the ATS Score tool helped me fix my resume completely before applying.' },
-          ].map(({ name, role, text }) => (
-            <div key={name} className="card p-6">
-              <div className="flex gap-0.5 mb-4">{[...Array(5)].map((_, i) => <Star key={i} size={13} fill="var(--amber)" style={{ color: 'var(--amber)' }} />)}</div>
-              <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--ink-soft)' }}>"{text}"</p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm" style={{ background: 'var(--blue)' }}>{name.charAt(0)}</div>
-                <div><p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>{name}</p><p className="text-xs" style={{ color: 'var(--ink-faint)' }}>{role}</p></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <SalaryBenchmark />
-
-      {/* ── TRUST SIGNALS ── */}
-      <section className="px-6 py-16" style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)' }}>
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          {[
-            { icon: Shield, title: '100% Secure', desc: 'Resume data never stored' },
-            { icon: Zap, title: 'AI Powered', desc: 'Fast & accurate analysis' },
-            { icon: Clock, title: 'Instant Results', desc: 'Under 30 seconds' },
-            { icon: Target, title: 'India Focused', desc: 'Built for Indian job market' },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex flex-col items-center gap-3">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ border: '1px solid var(--border)' }}><Icon size={18} style={{ color: 'var(--blue)' }} /></div>
-              <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>{title}</p>
-              <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>{desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── FINAL CTA ── */}
-      <section className="py-28 px-6 text-center">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="display text-4xl sm:text-5xl font-bold mb-5" style={{ color: 'var(--ink)' }}>
-            Your dream job is <span style={{ color: 'var(--blue)' }}>2 minutes away</span>
-          </h2>
-          <p className="mb-8 text-lg" style={{ color: 'var(--ink-soft)' }}>Upload your resume. Let AI do the searching.</p>
-          <button onClick={handleStartFree} className="btn-primary inline-flex items-center gap-2" style={{ fontSize: '1rem', padding: '0.9rem 2.2rem' }}>
-            <Zap size={17} fill="white" /> {user ? 'Find My Jobs' : 'Get Started Free'} <ArrowRight size={16} />
+          <br />
+          <button onClick={() => fetchNews(true)} className="btn-primary mt-4">
+            Try Again
           </button>
-          <p className="mt-4 text-xs" style={{ color: 'var(--ink-faint)' }}>No credit card · No signup required to browse</p>
         </div>
-      </section>
+      )}
 
-      <LiveActivity />
+      {data && !loading && (
+        <div>
+          <div className="flex gap-1 p-1 rounded-xl mb-6 overflow-x-auto"
+            style={{ background: 'var(--bg-panel)' }}>
+            {tabs.map(function(t) {
+              var Icon = t.icon
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all flex-shrink-0"
+                  style={{
+                    background: activeTab === t.id ? 'var(--bg)' : 'transparent',
+                    color: activeTab === t.id ? 'var(--ink)' : 'var(--ink-faint)',
+                  }}
+                >
+                  <Icon size={13} />
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {activeTab === 'headlines' && data.headlines && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {data.headlines.map(function(item, i) {
+                return (
+                  <div key={i} className="card card-hover p-4">
+                    <span className="pill pill-blue mb-2 inline-flex">{item.category}</span>
+                    <h3 className="text-sm font-bold mb-1.5" style={{ color: 'var(--ink)' }}>
+                      {item.title}
+                    </h3>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+                      {item.summary}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {activeTab === 'companies' && data.topHiringCompanies && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.topHiringCompanies.map(function(c, i) {
+                return (
+                  <div key={i} className="card p-4">
+                    <p className="font-bold text-sm mb-1" style={{ color: 'var(--ink)' }}>{c.name}</p>
+                    <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>{c.hiringFor}</p>
+                    <span className="pill pill-green">{c.freshersHired} freshers</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {activeTab === 'skills' && data.trendingSkills && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {data.trendingSkills.map(function(s, i) {
+                return (
+                  <div key={i} className="card card-hover p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-bold text-sm" style={{ color: 'var(--ink)' }}>{s.skill}</p>
+                      <span className="pill pill-green">{s.growth}</span>
+                    </div>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.category}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {activeTab === 'salary' && data.salaryInsights && (
+            <div className="max-w-3xl">
+              <div className="card p-5">
+                {data.salaryInsights.map(function(item, i) {
+                  return (
+                    <div key={i} className="flex items-center justify-between py-3"
+                      style={{ borderBottom: '1px solid var(--border)' }}>
+                      <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{item.role}</p>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>Fresher</p>
+                          <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{item.fresherSalary}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>Mid</p>
+                          <p className="text-sm font-bold" style={{ color: 'var(--ink-soft)' }}>{item.midSalary}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'trends' && data.hiringTrends && (
+            <div className="max-w-3xl space-y-4">
+              {data.hiringTrends.map(function(trend, i) {
+                return (
+                  <div key={i} className="card p-5">
+                    <h3 className="font-bold text-sm mb-2" style={{ color: 'var(--ink)' }}>{trend.trend}</h3>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-soft)' }}>{trend.description}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
