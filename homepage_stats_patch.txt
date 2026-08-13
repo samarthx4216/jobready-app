@@ -1,0 +1,18 @@
+FIND this in src/app/page.js:
+  "2,847 fresher jobs" OR any hardcoded fake job count
+
+REPLACE WITH honest stats section like this:
+
+<div className="flex flex-wrap items-center justify-center gap-6 mt-6">
+  {[
+    { value: '12+', label: 'Startups Tracked' },
+    { value: '8', label: 'Career Roadmaps' },
+    { value: '5', label: 'AI Tools Free' },
+    { value: '₹0', label: 'Forever Free' },
+  ].map(({ value, label }) => (
+    <div key={label} className="text-center">
+      <p className="display text-2xl font-black" style={{ color: 'var(--blue)' }}>{value}</p>
+      <p className="text-xs mt-0.5" style={{ color: 'var(--ink-faint)' }}>{label}</p>
+    </div>
+  ))}
+</div>

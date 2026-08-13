@@ -1,0 +1,259 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FFFFFF;
+  --bg-panel: #F8FAFC;
+  --bg-panel-hover: #F1F5F9;
+  --ink: #0F172A;
+  --ink-soft: #475569;
+  --ink-faint: #94A3B8;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --blue: #0A66C2;
+  --blue-dark: #004182;
+  --blue-light: #EBF3FC;
+  --green: #16A34A;
+  --green-light: #ECFDF3;
+  --amber: #D97706;
+  --amber-light: #FFFBEB;
+  --red: #DC2626;
+  --red-light: #FEF2F2;
+}
+
+* { box-sizing: border-box; padding: 0; margin: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-panel); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+::selection { background: rgba(10, 102, 194, 0.15); }
+
+@layer components {
+  .display { font-family: 'Sora', sans-serif; }
+
+  .btn-primary {
+    background: var(--blue);
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-primary:disabled { background: var(--border-strong); color: var(--ink-faint); cursor: not-allowed; }
+
+  .btn-secondary {
+    background: white;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-strong);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-secondary:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .card-hover { transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+  .card-hover:hover { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); border-color: var(--border-strong); }
+
+  .input-field {
+    width: 100%;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .input-field:focus { border-color: var(--blue); }
+  .input-field::placeholder { color: var(--ink-faint); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .pill-blue { background: var(--blue-light); color: var(--blue-dark); }
+  .pill-green { background: var(--green-light); color: var(--green); }
+  .pill-amber { background: var(--amber-light); color: var(--amber); }
+  .pill-grey { background: var(--bg-panel); color: var(--ink-soft); }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--blue);
+  }
+
+  .id-card {
+    position: relative;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .id-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--blue), #38BDF8);
+  }
+
+  .page-enter { animation: fadeInUp 0.35s ease forwards; }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+.bg-dotgrid {
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* ── DARK MODE ── */
+[data-theme="dark"] {
+  --bg: #0F172A;
+  --bg-panel: #1E293B;
+  --bg-panel-hover: #263347;
+  --ink: #F1F5F9;
+  --ink-soft: #94A3B8;
+  --ink-faint: #64748B;
+  --border: #2D3F5E;
+  --border-strong: #3D5070;
+  --blue: #60A5FA;
+  --blue-dark: #93C5FD;
+  --blue-light: rgba(96,165,250,0.12);
+  --green: #4ADE80;
+  --green-light: rgba(74,222,128,0.1);
+  --amber: #FCD34D;
+  --amber-light: rgba(252,211,77,0.1);
+  --red: #F87171;
+  --red-light: rgba(248,113,113,0.1);
+}
+
+/* ── NIGHT MODE (deep OLED black) ── */
+[data-theme="night"] {
+  --bg: #000000;
+  --bg-panel: #0A0A0A;
+  --bg-panel-hover: #111111;
+  --ink: #FFFFFF;
+  --ink-soft: #A1A1AA;
+  --ink-faint: #71717A;
+  --border: #1F1F1F;
+  --border-strong: #2D2D2D;
+  --blue: #818CF8;
+  --blue-dark: #A5B4FC;
+  --blue-light: rgba(129,140,248,0.12);
+  --green: #34D399;
+  --green-light: rgba(52,211,153,0.1);
+  --amber: #FBBF24;
+  --amber-light: rgba(251,191,36,0.1);
+  --red: #FC8181;
+  --red-light: rgba(252,129,129,0.1);
+}
+
+/* Apply bg color to body for all themes */
+[data-theme="dark"] body,
+[data-theme="night"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Cards in dark/night — white bg becomes dark */
+[data-theme="dark"] .card,
+[data-theme="night"] .card {
+  background: var(--bg-panel) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .id-card,
+[data-theme="night"] .id-card {
+  background: var(--bg-panel) !important;
+  border-color: var(--border) !important;
+}
+
+/* Inputs */
+[data-theme="dark"] .input-field,
+[data-theme="night"] .input-field {
+  background: var(--bg-panel) !important;
+  border-color: var(--border) !important;
+  color: var(--ink) !important;
+}
+
+/* Buttons */
+[data-theme="dark"] .btn-secondary,
+[data-theme="night"] .btn-secondary {
+  background: var(--bg-panel) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--ink) !important;
+}
+
+/* Navbar */
+[data-theme="dark"] nav,
+[data-theme="night"] nav {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+}
+
+/* Footer */
+[data-theme="dark"] footer,
+[data-theme="night"] footer {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+}
+
+/* Dotgrid texture for dark */
+[data-theme="dark"] .bg-dotgrid,
+[data-theme="night"] .bg-dotgrid {
+  background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Logo strip fade */
+[data-theme="dark"] .logo-strip-fade-left,
+[data-theme="night"] .logo-strip-fade-left {
+  background: linear-gradient(90deg, var(--bg), transparent) !important;
+}
+[data-theme="dark"] .logo-strip-fade-right,
+[data-theme="night"] .logo-strip-fade-right {
+  background: linear-gradient(-90deg, var(--bg), transparent) !important;
+}
+
+/* select options */
+[data-theme="dark"] select option,
+[data-theme="night"] select option {
+  background: var(--bg-panel);
+  color: var(--ink);
+}
