@@ -1,288 +1,219 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Bookmark, BookmarkCheck, ExternalLink, Users, TrendingUp, Search, Zap, Star, DollarSign, Briefcase, MapPin } from 'lucide-react'
-import Disclaimer from '@/components/Disclaimer'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { startups, stages } from '@/lib/startups'
+import { useRouter } from 'next/navigation'
+import { Search, ArrowRight, Zap, CheckCircle, Star, TrendingUp, Rocket, FileText, BarChart2, Newspaper, ChevronRight, Shield, Clock, Target } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
+import LiveActivity from '@/components/LiveActivity'
+import LogoStrip from '@/components/LogoStrip'
+import ComparisonTable from '@/components/ComparisonTable'
+import SkillsQuiz from '@/components/SkillsQuiz'
+import BeforeAfter from '@/components/BeforeAfter'
+import SalaryBenchmark from '@/components/SalaryBenchmark'
 
-const SAVE_KEY = 'jobready_saved_startups'
-const domainFilters = ['All', 'Fintech', 'Edtech', 'Ecommerce', 'Consumer', 'SaaS']
+function Counter({ target, suffix = '', duration = 1800 }) {
+  const [count, setCount] = useState(0)
+  const [started, setStarted] = useState(false)
+  const ref = useRef()
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setStarted(true) }, { threshold: 0.5 })
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [])
+  useEffect(() => {
+    if (!started) return
+    const num = parseInt(target.replace(/\D/g, ''))
+    let start = 0; const step = num / (duration / 16)
+    const t = setInterval(() => { start += step; if (start >= num) { setCount(num); clearInterval(t) } else setCount(Math.floor(start)) }, 16)
+    return () => clearInterval(t)
+  }, [started, target, duration])
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+}
 
-export default function StartupTrackerPage() {
-  const [savedIds, setSavedIds] = useState([])
-  const [search, setSearch] = useState('')
-  const [filterStage, setFilterStage] = useState('All')
-  const [showSaved, setShowSaved] = useState(false)
-  const [expandedId, setExpandedId] = useState(null)
+const features = [
+  { icon: Rocket, label: 'Startup Tracker', href: '/startup-tracker', tag: 'Live', title: 'Track funded startups', description: 'See funded Indian startups hiring freshers with founder profiles, salary ranges, and open roles.' },
+  { icon: Search, label: 'AI Job Finder', href: '/job-finder', tag: 'AI', title: 'Jobs matched to your resume', description: 'Upload your resume and let AI search for matching jobs across the web with skill-match scoring.' },
+  { icon: FileText, label: 'Resume Tailor', href: '/resume-tailor', tag: 'AI', title: 'Tailor resume for any job', description: 'Paste a job description and your resume — get an ATS-optimized version made for that exact role.' },
+  { icon: BarChart2, label: 'ATS Score', href: '/ats-score', tag: 'Instant', title: 'Check your ATS score', description: 'Score out of 100 with section-wise feedback and the exact fixes to make first.' },
+  { icon: Newspaper, label: 'AI News', href: '/news', tag: 'Daily', title: 'See who is hiring now', description: 'Top hiring companies, trending skills, and salary data updated for the Indian fresher market.' },
+]
+
+export default function HomePage() {
+  const [liveJobs, setLiveJobs] = useState(2847)
+  const { user } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(SAVE_KEY)
-      if (saved) setSavedIds(JSON.parse(saved))
-    } catch {}
+    const interval = setInterval(() => setLiveJobs(prev => prev + Math.floor(Math.random() * 3)), 3000)
+    return () => clearInterval(interval)
   }, [])
 
-  function toggleSave(id) {
-    setSavedIds(prev => {
-      const next = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(next)) } catch {}
-      return next
-    })
-  }
-
-  const filtered = startups.filter(s => {
-    if (showSaved && !savedIds.includes(s.id)) return false
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) &&
-        !s.description?.toLowerCase().includes(search.toLowerCase()) &&
-        !s.hiringFor?.some(r => r.toLowerCase().includes(search.toLowerCase()))) return false
-    if (filterStage !== 'All' && s.stage !== filterStage) return false
-    return true
-  })
+  function handleStartFree() { router.push(user ? '/job-finder' : '/signup') }
 
   return (
-    <div className="page-enter max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      {/* Header */}
-      <div className="mb-8">
-        <p className="eyebrow mb-3">Live Tracker</p>
-        <h1 className="display text-4xl sm:text-5xl font-bold mb-3" style={{ color: 'var(--ink)' }}>
-          Startup Tracker
-        </h1>
-        <p style={{ color: 'var(--ink-soft)' }}>
-          Funded Indian startups actively hiring freshers — bookmark your targets, track who's hiring
-        </p>
-      </div>
+    <div className="page-enter">
+      {/* ── HERO ── */}
+      <section className="relative bg-dotgrid" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="max-w-5xl mx-auto px-6 pt-20 pb-24 text-center">
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Startups Listed', value: `${startups.length}`, icon: Briefcase, color: 'var(--blue)' },
-          { label: 'Total Funding', value: '$8B+', icon: TrendingUp, color: 'var(--green)' },
-          { label: 'Fresher Roles', value: '50+', icon: Users, color: 'var(--amber)' },
-          { label: 'Bookmarked', value: savedIds.length, icon: Bookmark, color: '#7C3AED' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="card p-4 text-center">
-            <Icon size={16} className="mx-auto mb-2" style={{ color }} />
-            <p className="text-xl font-black" style={{ color: 'var(--ink)', fontFamily: 'Sora, sans-serif' }}>{value}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--ink-faint)' }}>{label}</p>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ border: '1px solid var(--border)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--green)' }} />
+            <span style={{ color: 'var(--ink)', fontWeight: 700 }}>{liveJobs.toLocaleString()}</span>
+            <span style={{ color: 'var(--ink-soft)' }}>fresher jobs live right now</span>
           </div>
-        ))}
-      </div>
 
-      <Disclaimer type="startups" />
+          <h1 className="display text-5xl sm:text-6xl md:text-7xl font-bold mb-6 leading-[1.05]" style={{ color: 'var(--ink)' }}>
+            Land your first job<br /><span style={{ color: 'var(--blue)' }}>without the guesswork</span>
+          </h1>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-faint)' }} />
-          <input className="input-field" style={{ paddingLeft: 36 }}
-            placeholder="Search startups, roles, skills..."
-            value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <select className="input-field" style={{ width: 'auto' }}
-          value={filterStage} onChange={e => setFilterStage(e.target.value)}>
-          {stages.map(s => <option key={s}>{s}</option>)}
-        </select>
-        <button onClick={() => setShowSaved(!showSaved)}
-          className={showSaved ? 'btn-primary' : 'btn-secondary'}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
-          <BookmarkCheck size={14} />
-          Saved ({savedIds.length})
-        </button>
-      </div>
-
-      <p style={{ fontSize: 13, color: 'var(--ink-faint)', marginBottom: 16 }}>
-        Showing <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{filtered.length}</span> startups
-        {savedIds.length > 0 && !showSaved && (
-          <button onClick={() => setShowSaved(true)} style={{ marginLeft: 10, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-            View {savedIds.length} saved →
-          </button>
-        )}
-      </p>
-
-      {/* Cards grid */}
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 0' }}>
-          <p style={{ fontSize: 40, marginBottom: 12 }}>🔍</p>
-          <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
-            {showSaved ? 'No saved startups yet' : 'No startups found'}
+          <p className="text-lg max-w-2xl mx-auto mb-10 leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+            JobReady reads your resume, finds the jobs that fit, tailors your application, and checks your ATS score — all in one place, free.
           </p>
-          <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
-            {showSaved ? 'Bookmark startups using the bookmark icon on each card' : 'Try different search terms or filters'}
-          </p>
-          {showSaved && (
-            <button onClick={() => setShowSaved(false)} className="btn-secondary" style={{ marginTop: 14 }}>
-              Browse All Startups
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-14">
+            <button onClick={handleStartFree} className="btn-primary flex items-center justify-center gap-2" style={{ fontSize: '0.95rem', padding: '0.85rem 2rem' }}>
+              <Zap size={16} fill="white" /> {user ? 'Find My Jobs' : 'Start for Free'} <ArrowRight size={15} />
             </button>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-          {filtered.map(s => {
-            const isExpanded = expandedId === s.id
-            const isSaved = savedIds.includes(s.id)
-            return (
-              <div key={s.id} className="id-card" style={{ padding: 0, overflow: 'hidden', transition: 'all 0.2s' }}>
-                {/* Top color strip */}
-                <div style={{ height: 4, background: isSaved ? 'var(--green)' : 'var(--blue)' }} />
+            <Link href="/job-finder" className="btn-secondary flex items-center justify-center gap-2" style={{ textDecoration: 'none', fontSize: '0.95rem', padding: '0.85rem 2rem' }}>
+              <Search size={16} /> Find Jobs with AI
+            </Link>
+          </div>
 
-                <div style={{ padding: '18px 18px 16px' }}>
-                  {/* Header row */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      {/* Logo with fallback */}
-                      <div style={{ position: 'relative', width: 48, height: 48, flexShrink: 0 }}>
-                        <img
-                          src={`https://logo.clearbit.com/${s.domain}`}
-                          alt={s.name}
-                          style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'contain', background: 'white', border: '1px solid var(--border)', padding: 4 }}
-                          onError={e => {
-                            e.target.style.display = 'none'
-                            e.target.nextSibling.style.display = 'flex'
-                          }}
-                        />
-                        <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--blue)', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'white', position: 'absolute', top: 0, left: 0 }}>
-                          {s.name?.charAt(0)}
-                        </div>
-                      </div>
-                      <div>
-                        <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 2 }}>{s.name}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{s.stage}</span>
-                          <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>·</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--ink-faint)' }}>
-                            <MapPin size={9} />{s.location}
-                          </span>
-                          {s.rating && (
-                            <>
-                              <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>·</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, color: 'var(--amber)' }}>
-                                <Star size={9} fill="var(--amber)" />{s.rating}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={() => toggleSave(s.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
-                      {isSaved
-                        ? <BookmarkCheck size={18} style={{ color: 'var(--green)' }} fill="var(--green)" />
-                        : <Bookmark size={18} style={{ color: 'var(--ink-faint)' }} />}
-                    </button>
-                  </div>
-
-                  {/* Description */}
-                  <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>
-                    {s.description}
-                  </p>
-
-                  {/* Stats row */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
-                    <div style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'var(--bg-panel)' }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>{s.funding}</p>
-                      <p style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Funding</p>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'var(--bg-panel)' }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{s.teamSize}</p>
-                      <p style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Team Size</p>
-                    </div>
-                    <div style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'var(--bg-panel)' }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>{s.avgSalary}</p>
-                      <p style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Avg Pay</p>
-                    </div>
-                  </div>
-
-                  {/* Hiring roles */}
-                  <div style={{ marginBottom: 12 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: 6 }}>
-                      HIRING FOR
-                    </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {s.hiringFor?.slice(0, isExpanded ? 10 : 3).map(role => (
-                        <span key={role} className="pill pill-blue" style={{ fontSize: 11 }}>{role}</span>
-                      ))}
-                      {!isExpanded && s.hiringFor?.length > 3 && (
-                        <span className="pill pill-grey" style={{ fontSize: 11 }}>+{s.hiringFor.length - 3} more</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Expanded info */}
-                  {isExpanded && (
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ marginBottom: 10 }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: 6 }}>
-                          KEY SKILLS
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {s.skills?.map(skill => (
-                            <span key={skill} className="pill pill-green" style={{ fontSize: 11 }}>{skill}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: 10 }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: 6 }}>
-                          PERKS
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {s.perks?.map(perk => (
-                            <span key={perk} className="pill pill-grey" style={{ fontSize: 11 }}>{perk}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--green-light)' }}>
-                        <p style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>
-                          🎓 {s.freshersHired}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action buttons */}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <a href={s.careersUrl}
-                      target="_blank" rel="noopener noreferrer"
-                      className="btn-primary"
-                      style={{ flex: 1, textDecoration: 'none', fontSize: '0.82rem', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                      <Zap size={12} fill="white" /> View Jobs
-                    </a>
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : s.id)}
-                      className="btn-secondary"
-                      style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem' }}>
-                      {isExpanded ? 'Less' : 'More'}
-                    </button>
-                    <a href={`https://${s.domain}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="btn-secondary"
-                      style={{ textDecoration: 'none', padding: '0.5rem 0.7rem' }}>
-                      <ExternalLink size={12} />
-                    </a>
-                  </div>
-                </div>
+          {/* Stats strip — campus ID style */}
+          <div className="id-card inline-flex flex-wrap justify-center divide-x" style={{ borderColor: 'var(--border)' }}>
+            {[
+              { target: '10000', suffix: '+', label: 'Freshers Helped' },
+              { target: '500', suffix: '+', label: 'Startups Tracked' },
+              { target: '95', suffix: '%', label: 'ATS Pass Rate' },
+              { target: '2', suffix: ' min', label: 'Avg Search Time' },
+            ].map(({ target, suffix, label }, i) => (
+              <div key={label} className="px-8 py-5 text-center" style={{ borderColor: 'var(--border)' }}>
+                <div className="display text-2xl font-bold" style={{ color: 'var(--ink)' }}><Counter target={target} suffix={suffix} /></div>
+                <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{label}</p>
               </div>
-            )
-          })}
+            ))}
+          </div>
         </div>
-      )}
+      </section>
 
-      {/* Bottom CTA */}
-      <div className="card p-5 mt-10 text-center" style={{ background: 'var(--blue-light)' }}>
-        <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
-          Know which startups you're targeting?
-        </p>
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14 }}>
-          Use AI Job Finder to match your resume with their open roles
-        </p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/job-finder" className="btn-primary" style={{ textDecoration: 'none' }}>
-            Find Matching Jobs →
-          </Link>
-          <Link href="/resume-tailor" className="btn-secondary" style={{ textDecoration: 'none' }}>
-            Tailor Resume
-          </Link>
+      <LogoStrip />
+
+      {/* ── FEATURES — campus ID card grid ── */}
+      <section className="max-w-7xl mx-auto px-6 py-24">
+        <div className="text-center mb-14">
+          <p className="eyebrow mb-3">Everything you need</p>
+          <h2 className="display text-4xl font-bold" style={{ color: 'var(--ink)' }}>Five tools. One dashboard.</h2>
         </div>
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {features.map(({ icon: Icon, label, href, tag, title, description }) => (
+            <Link key={href} href={href} className="id-card card-hover p-6 block" style={{ textDecoration: 'none' }}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--blue-light)' }}>
+                  <Icon size={20} style={{ color: 'var(--blue)' }} />
+                </div>
+                <span className="pill pill-blue">{tag}</span>
+              </div>
+              <h3 className="font-bold text-base mb-2" style={{ color: 'var(--ink)' }}>{title}</h3>
+              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--ink-soft)' }}>{description}</p>
+              <div className="flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--blue)' }}>
+                Open {label} <ChevronRight size={14} />
+              </div>
+            </Link>
+          ))}
+          <div className="rounded-2xl flex flex-col items-center justify-center text-center gap-2 p-6" style={{ border: '1.5px dashed var(--border-strong)' }}>
+            <Star size={18} style={{ color: 'var(--ink-faint)' }} />
+            <p className="text-sm font-medium" style={{ color: 'var(--ink-faint)' }}>More tools coming soon</p>
+          </div>
+        </div>
+      </section>
+
+      <ComparisonTable />
+      <SkillsQuiz />
+
+      {/* ── HOW IT WORKS ── */}
+      <section className="py-24 px-6" style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="eyebrow mb-3">Simple process</p>
+            <h2 className="display text-4xl font-bold" style={{ color: 'var(--ink)' }}>From resume to offer in 3 steps</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { n: '01', title: 'Upload your resume', desc: 'PDF or paste text. AI reads your skills and experience in seconds.' },
+              { n: '02', title: 'AI finds your jobs', desc: 'Get matched jobs across the web with a clear % fit score for each.' },
+              { n: '03', title: 'Tailor & apply', desc: 'One-click tailor your resume for top matches, then apply directly.' },
+            ].map(({ n, title, desc }) => (
+              <div key={n} className="card p-6">
+                <span className="display text-3xl font-bold block mb-4" style={{ color: 'var(--blue)' }}>{n}</span>
+                <h3 className="font-bold text-base mb-2" style={{ color: 'var(--ink)' }}>{title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--ink-soft)' }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <BeforeAfter />
+
+      {/* ── TESTIMONIALS ── */}
+      <section className="max-w-6xl mx-auto px-6 py-24">
+        <div className="text-center mb-14">
+          <p className="eyebrow mb-3">Success stories</p>
+          <h2 className="display text-4xl font-bold" style={{ color: 'var(--ink)' }}>Freshers who got hired</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {[
+            { name: 'Priya Sharma', role: 'SDE at Zepto', text: 'JobReady found me 15 matching jobs in 2 minutes. The resume tailor boosted my ATS score from 42 to 87.' },
+            { name: 'Rahul Gupta', role: 'Data Analyst at Groww', text: 'Found Groww on the startup tracker, tailored my resume with AI, and got placed in 3 weeks.' },
+            { name: 'Ananya Singh', role: 'PM at Razorpay', text: 'As a non-CS fresher, the ATS Score tool helped me fix my resume completely before applying.' },
+          ].map(({ name, role, text }) => (
+            <div key={name} className="card p-6">
+              <div className="flex gap-0.5 mb-4">{[...Array(5)].map((_, i) => <Star key={i} size={13} fill="var(--amber)" style={{ color: 'var(--amber)' }} />)}</div>
+              <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--ink-soft)' }}>"{text}"</p>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm" style={{ background: 'var(--blue)' }}>{name.charAt(0)}</div>
+                <div><p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>{name}</p><p className="text-xs" style={{ color: 'var(--ink-faint)' }}>{role}</p></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <SalaryBenchmark />
+
+      {/* ── TRUST SIGNALS ── */}
+      <section className="px-6 py-16" style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border)' }}>
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+          {[
+            { icon: Shield, title: '100% Secure', desc: 'Resume data never stored' },
+            { icon: Zap, title: 'AI Powered', desc: 'Fast & accurate analysis' },
+            { icon: Clock, title: 'Instant Results', desc: 'Under 30 seconds' },
+            { icon: Target, title: 'India Focused', desc: 'Built for Indian job market' },
+          ].map(({ icon: Icon, title, desc }) => (
+            <div key={title} className="flex flex-col items-center gap-3">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ border: '1px solid var(--border)' }}><Icon size={18} style={{ color: 'var(--blue)' }} /></div>
+              <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>{title}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ── */}
+      <section className="py-28 px-6 text-center">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="display text-4xl sm:text-5xl font-bold mb-5" style={{ color: 'var(--ink)' }}>
+            Your dream job is <span style={{ color: 'var(--blue)' }}>2 minutes away</span>
+          </h2>
+          <p className="mb-8 text-lg" style={{ color: 'var(--ink-soft)' }}>Upload your resume. Let AI do the searching.</p>
+          <button onClick={handleStartFree} className="btn-primary inline-flex items-center gap-2" style={{ fontSize: '1rem', padding: '0.9rem 2.2rem' }}>
+            <Zap size={17} fill="white" /> {user ? 'Find My Jobs' : 'Get Started Free'} <ArrowRight size={16} />
+          </button>
+          <p className="mt-4 text-xs" style={{ color: 'var(--ink-faint)' }}>No credit card · No signup required to browse</p>
+        </div>
+      </section>
+
+      <LiveActivity />
     </div>
   )
 }
