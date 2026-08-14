@@ -1,248 +1,288 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Newspaper, TrendingUp, Clock, RefreshCw, Building2, DollarSign, AlertCircle } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { Bookmark, BookmarkCheck, ExternalLink, Users, TrendingUp, Search, Zap, Star, DollarSign, Briefcase, MapPin } from 'lucide-react'
 import Disclaimer from '@/components/Disclaimer'
+import Link from 'next/link'
+import { startups, stages } from '@/lib/startups'
 
-const CACHE_KEY = 'jobready_news_cache'
-const CACHE_DURATION = 6 * 60 * 60 * 1000
+const SAVE_KEY = 'jobready_saved_startups'
+const domainFilters = ['All', 'Fintech', 'Edtech', 'Ecommerce', 'Consumer', 'SaaS']
 
-function getCachedNews() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (!raw) return null
-    const { data, timestamp } = JSON.parse(raw)
-    if (Date.now() - timestamp > CACHE_DURATION) return null
-    return data
-  } catch { return null }
-}
+export default function StartupTrackerPage() {
+  const [savedIds, setSavedIds] = useState([])
+  const [search, setSearch] = useState('')
+  const [filterStage, setFilterStage] = useState('All')
+  const [showSaved, setShowSaved] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
 
-function setCachedNews(data) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }))
-  } catch {}
-}
-
-export default function NewsPage() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState('headlines')
-  const [refreshing, setRefreshing] = useState(false)
-  const [cacheAge, setCacheAge] = useState(null)
-
-  async function fetchNews(forceRefresh = false) {
-    if (!forceRefresh) {
-      const cached = getCachedNews()
-      if (cached) {
-        setData(cached)
-        setLoading(false)
-        try {
-          const raw = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}')
-          if (raw.timestamp) {
-            const mins = Math.floor((Date.now() - raw.timestamp) / 60000)
-            setCacheAge(mins < 60 ? (mins + 'm ago') : (Math.floor(mins / 60) + 'h ago'))
-          }
-        } catch {}
-        return
-      }
-    }
-    if (forceRefresh) setRefreshing(true)
-    else setLoading(true)
-    setError('')
+  useEffect(() => {
     try {
-      const res = await fetch('/api/ai-news')
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to fetch news')
-      setData(json)
-      setCachedNews(json)
-      setCacheAge('just now')
-      if (forceRefresh) toast.success('News refreshed!')
-    } catch (err) {
-      setError(err.message)
-      toast.error('Failed to load news')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
+      const saved = localStorage.getItem(SAVE_KEY)
+      if (saved) setSavedIds(JSON.parse(saved))
+    } catch {}
+  }, [])
+
+  function toggleSave(id) {
+    setSavedIds(prev => {
+      const next = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
-  useEffect(() => { fetchNews() }, [])
-
-  const tabs = [
-    { id: 'headlines', label: 'Headlines', icon: Newspaper },
-    { id: 'companies', label: 'Top Hiring', icon: Building2 },
-    { id: 'skills', label: 'Skills', icon: TrendingUp },
-    { id: 'salary', label: 'Salaries', icon: DollarSign },
-    { id: 'trends', label: 'Trends', icon: TrendingUp },
-  ]
+  const filtered = startups.filter(s => {
+    if (showSaved && !savedIds.includes(s.id)) return false
+    if (search && !s.name.toLowerCase().includes(search.toLowerCase()) &&
+        !s.description?.toLowerCase().includes(search.toLowerCase()) &&
+        !s.hiringFor?.some(r => r.toLowerCase().includes(search.toLowerCase()))) return false
+    if (filterStage !== 'All' && s.stage !== filterStage) return false
+    return true
+  })
 
   return (
     <div className="page-enter max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
-        <div>
-          <p className="eyebrow mb-3">Live AI Feed</p>
-          <h1 className="display text-4xl sm:text-5xl font-bold mb-2" style={{ color: 'var(--ink)' }}>
-            AI Hiring News
-          </h1>
-          <p style={{ color: 'var(--ink-soft)' }}>
-            Hiring trends, in-demand skills, salary data and market insights
-          </p>
-          {data && data.lastUpdated && (
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-faint)' }}>
-              Updated: {data.lastUpdated}
-              {cacheAge && (
-                <span className="pill pill-green" style={{ fontSize: 10, marginLeft: 8 }}>
-                  Cached {cacheAge}
-                </span>
-              )}
-            </p>
-          )}
+      {/* Header */}
+      <div className="mb-8">
+        <p className="eyebrow mb-3">Live Tracker</p>
+        <h1 className="display text-4xl sm:text-5xl font-bold mb-3" style={{ color: 'var(--ink)' }}>
+          Startup Tracker
+        </h1>
+        <p style={{ color: 'var(--ink-soft)' }}>
+          Funded Indian startups actively hiring freshers — bookmark your targets, track who's hiring
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Startups Listed', value: `${startups.length}`, icon: Briefcase, color: 'var(--blue)' },
+          { label: 'Total Funding', value: '$8B+', icon: TrendingUp, color: 'var(--green)' },
+          { label: 'Fresher Roles', value: '50+', icon: Users, color: 'var(--amber)' },
+          { label: 'Bookmarked', value: savedIds.length, icon: Bookmark, color: '#7C3AED' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="card p-4 text-center">
+            <Icon size={16} className="mx-auto mb-2" style={{ color }} />
+            <p className="text-xl font-black" style={{ color: 'var(--ink)', fontFamily: 'Sora, sans-serif' }}>{value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--ink-faint)' }}>{label}</p>
+          </div>
+        ))}
+      </div>
+
+      <Disclaimer type="startups" />
+
+      {/* Filters */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-faint)' }} />
+          <input className="input-field" style={{ paddingLeft: 36 }}
+            placeholder="Search startups, roles, skills..."
+            value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <button
-          onClick={() => fetchNews(true)}
-          disabled={loading || refreshing}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <RefreshCw size={14} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
+        <select className="input-field" style={{ width: 'auto' }}
+          value={filterStage} onChange={e => setFilterStage(e.target.value)}>
+          {stages.map(s => <option key={s}>{s}</option>)}
+        </select>
+        <button onClick={() => setShowSaved(!showSaved)}
+          className={showSaved ? 'btn-primary' : 'btn-secondary'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
+          <BookmarkCheck size={14} />
+          Saved ({savedIds.length})
         </button>
       </div>
 
-      <Disclaimer type="news" />
-
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '80px 0' }}>
-          <div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: 'var(--border)', borderTopColor: 'var(--blue)' }} />
-          <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>Loading fresh hiring news...</p>
-        </div>
-      )}
-
-      {error && !loading && (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div className="flex items-center gap-3 p-4 rounded-xl inline-flex"
-            style={{ background: '#FEF2F2' }}>
-            <AlertCircle size={18} style={{ color: 'var(--red)' }} />
-            <p style={{ color: 'var(--red)', fontSize: 14 }}>{error}</p>
-          </div>
-          <br />
-          <button onClick={() => fetchNews(true)} className="btn-primary mt-4">
-            Try Again
+      <p style={{ fontSize: 13, color: 'var(--ink-faint)', marginBottom: 16 }}>
+        Showing <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{filtered.length}</span> startups
+        {savedIds.length > 0 && !showSaved && (
+          <button onClick={() => setShowSaved(true)} style={{ marginLeft: 10, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+            View {savedIds.length} saved →
           </button>
+        )}
+      </p>
+
+      {/* Cards grid */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+          <p style={{ fontSize: 40, marginBottom: 12 }}>🔍</p>
+          <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+            {showSaved ? 'No saved startups yet' : 'No startups found'}
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>
+            {showSaved ? 'Bookmark startups using the bookmark icon on each card' : 'Try different search terms or filters'}
+          </p>
+          {showSaved && (
+            <button onClick={() => setShowSaved(false)} className="btn-secondary" style={{ marginTop: 14 }}>
+              Browse All Startups
+            </button>
+          )}
         </div>
-      )}
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          {filtered.map(s => {
+            const isExpanded = expandedId === s.id
+            const isSaved = savedIds.includes(s.id)
+            return (
+              <div key={s.id} className="id-card" style={{ padding: 0, overflow: 'hidden', transition: 'all 0.2s' }}>
+                {/* Top color strip */}
+                <div style={{ height: 4, background: isSaved ? 'var(--green)' : 'var(--blue)' }} />
 
-      {data && !loading && (
-        <div>
-          <div className="flex gap-1 p-1 rounded-xl mb-6 overflow-x-auto"
-            style={{ background: 'var(--bg-panel)' }}>
-            {tabs.map(function(t) {
-              var Icon = t.icon
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all flex-shrink-0"
-                  style={{
-                    background: activeTab === t.id ? 'var(--bg)' : 'transparent',
-                    color: activeTab === t.id ? 'var(--ink)' : 'var(--ink-faint)',
-                  }}
-                >
-                  <Icon size={13} />
-                  {t.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {activeTab === 'headlines' && data.headlines && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {data.headlines.map(function(item, i) {
-                return (
-                  <div key={i} className="card card-hover p-4">
-                    <span className="pill pill-blue mb-2 inline-flex">{item.category}</span>
-                    <h3 className="text-sm font-bold mb-1.5" style={{ color: 'var(--ink)' }}>
-                      {item.title}
-                    </h3>
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
-                      {item.summary}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {activeTab === 'companies' && data.topHiringCompanies && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.topHiringCompanies.map(function(c, i) {
-                return (
-                  <div key={i} className="card p-4">
-                    <p className="font-bold text-sm mb-1" style={{ color: 'var(--ink)' }}>{c.name}</p>
-                    <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>{c.hiringFor}</p>
-                    <span className="pill pill-green">{c.freshersHired} freshers</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {activeTab === 'skills' && data.trendingSkills && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {data.trendingSkills.map(function(s, i) {
-                return (
-                  <div key={i} className="card card-hover p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-bold text-sm" style={{ color: 'var(--ink)' }}>{s.skill}</p>
-                      <span className="pill pill-green">{s.growth}</span>
-                    </div>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.category}</p>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {activeTab === 'salary' && data.salaryInsights && (
-            <div className="max-w-3xl">
-              <div className="card p-5">
-                {data.salaryInsights.map(function(item, i) {
-                  return (
-                    <div key={i} className="flex items-center justify-between py-3"
-                      style={{ borderBottom: '1px solid var(--border)' }}>
-                      <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>{item.role}</p>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>Fresher</p>
-                          <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{item.fresherSalary}</p>
+                <div style={{ padding: '18px 18px 16px' }}>
+                  {/* Header row */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {/* Logo with fallback */}
+                      <div style={{ position: 'relative', width: 48, height: 48, flexShrink: 0 }}>
+                        <img
+                          src={`https://logo.clearbit.com/${s.domain}`}
+                          alt={s.name}
+                          style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'contain', background: 'white', border: '1px solid var(--border)', padding: 4 }}
+                          onError={e => {
+                            e.target.style.display = 'none'
+                            e.target.nextSibling.style.display = 'flex'
+                          }}
+                        />
+                        <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--blue)', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'white', position: 'absolute', top: 0, left: 0 }}>
+                          {s.name?.charAt(0)}
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>Mid</p>
-                          <p className="text-sm font-bold" style={{ color: 'var(--ink-soft)' }}>{item.midSalary}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 2 }}>{s.name}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{s.stage}</span>
+                          <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>·</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--ink-faint)' }}>
+                            <MapPin size={9} />{s.location}
+                          </span>
+                          {s.rating && (
+                            <>
+                              <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>·</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, color: 'var(--amber)' }}>
+                                <Star size={9} fill="var(--amber)" />{s.rating}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'trends' && data.hiringTrends && (
-            <div className="max-w-3xl space-y-4">
-              {data.hiringTrends.map(function(trend, i) {
-                return (
-                  <div key={i} className="card p-5">
-                    <h3 className="font-bold text-sm mb-2" style={{ color: 'var(--ink)' }}>{trend.trend}</h3>
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-soft)' }}>{trend.description}</p>
+                    <button onClick={() => toggleSave(s.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+                      {isSaved
+                        ? <BookmarkCheck size={18} style={{ color: 'var(--green)' }} fill="var(--green)" />
+                        : <Bookmark size={18} style={{ color: 'var(--ink-faint)' }} />}
+                    </button>
                   </div>
-                )
-              })}
-            </div>
-          )}
+
+                  {/* Description */}
+                  <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 12, lineHeight: 1.6 }}>
+                    {s.description}
+                  </p>
+
+                  {/* Stats row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+                    <div style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'var(--bg-panel)' }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>{s.funding}</p>
+                      <p style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Funding</p>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'var(--bg-panel)' }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{s.teamSize}</p>
+                      <p style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Team Size</p>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'var(--bg-panel)' }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>{s.avgSalary}</p>
+                      <p style={{ fontSize: 10, color: 'var(--ink-faint)' }}>Avg Pay</p>
+                    </div>
+                  </div>
+
+                  {/* Hiring roles */}
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: 6 }}>
+                      HIRING FOR
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {s.hiringFor?.slice(0, isExpanded ? 10 : 3).map(role => (
+                        <span key={role} className="pill pill-blue" style={{ fontSize: 11 }}>{role}</span>
+                      ))}
+                      {!isExpanded && s.hiringFor?.length > 3 && (
+                        <span className="pill pill-grey" style={{ fontSize: 11 }}>+{s.hiringFor.length - 3} more</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded info */}
+                  {isExpanded && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ marginBottom: 10 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: 6 }}>
+                          KEY SKILLS
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                          {s.skills?.map(skill => (
+                            <span key={skill} className="pill pill-green" style={{ fontSize: 11 }}>{skill}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginBottom: 6 }}>
+                          PERKS
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                          {s.perks?.map(perk => (
+                            <span key={perk} className="pill pill-grey" style={{ fontSize: 11 }}>{perk}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--green-light)' }}>
+                        <p style={{ fontSize: 12, color: 'var(--green)', fontWeight: 600 }}>
+                          🎓 {s.freshersHired}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <a href={s.careersUrl}
+                      target="_blank" rel="noopener noreferrer"
+                      className="btn-primary"
+                      style={{ flex: 1, textDecoration: 'none', fontSize: '0.82rem', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                      <Zap size={12} fill="white" /> View Jobs
+                    </a>
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                      className="btn-secondary"
+                      style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem' }}>
+                      {isExpanded ? 'Less' : 'More'}
+                    </button>
+                    <a href={`https://${s.domain}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="btn-secondary"
+                      style={{ textDecoration: 'none', padding: '0.5rem 0.7rem' }}>
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
+
+      {/* Bottom CTA */}
+      <div className="card p-5 mt-10 text-center" style={{ background: 'var(--blue-light)' }}>
+        <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
+          Know which startups you're targeting?
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14 }}>
+          Use AI Job Finder to match your resume with their open roles
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link href="/job-finder" className="btn-primary" style={{ textDecoration: 'none' }}>
+            Find Matching Jobs →
+          </Link>
+          <Link href="/resume-tailor" className="btn-secondary" style={{ textDecoration: 'none' }}>
+            Tailor Resume
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
