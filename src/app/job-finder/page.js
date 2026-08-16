@@ -37,7 +37,7 @@ function JobCard({ job }) {
         </div>
         <div className="flex flex-wrap gap-3 mb-3">
           <span className="flex items-center gap-1 text-xs" style={{ color: '#64748B' }}><MapPin size={10} />{job.location}</span>
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#64748B' }}><DollarSign size={10} />{job.salary}</span>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#64748B' }}><DollarSign size={10} />{job.salary} (est.)</span>
           <span className="flex items-center gap-1 text-xs" style={{ color: '#64748B' }}><Briefcase size={10} />{job.experience}</span>
         </div>
         <p className="text-xs mb-3 leading-relaxed" style={{ color: '#94A3B8' }}>{job.matchReason}</p>
