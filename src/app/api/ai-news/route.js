@@ -93,6 +93,8 @@ Return ONLY this exact JSON structure:
 }
 
 Rules:
+- IMPORTANT: Do NOT invent specific announcements, exact dates, or precise hiring numbers attributed to real companies as if they are confirmed facts. Frame company mentions as illustrative of general hiring patterns — e.g. "Startups like Zepto and Razorpay are among those actively expanding fresher hiring this quarter" rather than "Zepto announced it will hire exactly 500 freshers starting [date]."
+- Headlines and summaries should describe general market patterns and typical hiring activity, not fabricated specific corporate announcements
 - Generate 8 headlines covering: mass hiring, layoffs recovery, new campuses, salary hikes, AI adoption
 - Generate 8 top hiring companies (mix of startups + MNCs: Google, Microsoft, Zepto, Razorpay, etc.)
 - Generate 10 trending skills (must include: GenAI, LLMs, React, Python, Cloud, DevOps, etc.)
@@ -100,7 +102,7 @@ Rules:
 - Generate 5 hiring trends
 - category values: "hiring", "skills", "salary", "trend", "remote", "campus"
 - impact values: "high", "medium", "low"
-- Use realistic Indian market data for 2025-2026`
+- Use realistic Indian market data for 2025-2026, framed as general trends and estimates, not verified news reporting`
 
     const response = await fetch(GROQ_API_URL, {
       method: 'POST',
@@ -139,3 +141,5 @@ Rules:
     )
   }
 }
+
+
