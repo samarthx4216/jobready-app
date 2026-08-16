@@ -2,7 +2,7 @@
 
 > A full-stack AI job platform built for freshers in India. Free forever. No backend. No cost.
 
-🔗 **Live Demo:** [jobready.vercel.app](https://jobready.vercel.app)  
+🔗 **Live Demo:** [jobready.vercel.app](https://jobready-app-gamma.vercel.app/)  
 📁 **Tech Stack:** Next.js 15 · React 19 · Groq AI · Tailwind CSS · localStorage
 
 ---
