@@ -28,7 +28,7 @@ Scoring guide: 9-10=perfect with examples, 7-8=good but missing depth, 5-6=basic
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_API_KEY}` },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
         max_tokens: 500,
