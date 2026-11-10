@@ -115,11 +115,6 @@ JobReady is a **student project** built for educational and portfolio purposes.
 ---
 
 ## 👨‍💻 Built By
-
-Made with ❤️ for Indian freshers · Student project · Zero budget
-
----
-
-## 📄 License
+Samarth Marathe
 
 MIT License — free to use and learn from
